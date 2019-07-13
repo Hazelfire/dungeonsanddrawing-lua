@@ -1,11 +1,12 @@
 require 'pickle'
-require 'player'
 
 lines = {}
 currentline = {}
 startx = 0
 starty = 0
 down = false
+
+players = {}
 
 offsetx = 0
 offsety = 0
@@ -24,7 +25,6 @@ buffer = {}
 
 
 pasteMode = false
-
 function love.load() 
   love.window.setFullscreen(true)
   love.mouse.setVisible(false)
@@ -68,7 +68,7 @@ function love.update(dt)
         selectEndy = y - offsety
       end
     else
-      if not pasteMode then
+      if not pastMode then
         table.insert(currentline, x - offsetx)
         table.insert(currentline, y - offsety)
       end
@@ -76,6 +76,7 @@ function love.update(dt)
   else
     if selectMode then
       startSelect = false
+
     end
     if down then 
       down = false
@@ -145,8 +146,17 @@ function love.update(dt)
     grabDown = false
   end
 
-  
-  updatePlayers(dt)
+  for i, player in pairs(players) do
+    local nx = player.joystick:getGamepadAxis("leftx")
+    local ny = player.joystick:getGamepadAxis("lefty")
+
+    local speed = 100
+    if player.joystick:getGamepadAxis("triggerright") > 0.5 then
+      speed = 200
+    end
+    player.x = player.x + nx * speed * dt;
+    player.y = player.y + ny * speed * dt;
+  end
 
 
   local scrollspeed = 400
@@ -193,7 +203,11 @@ function love.draw()
     drawLines(translateBuffer(buffer, mousex - offsetx, mousey - offsety))
   end
 
-  drawPlayers()
+  love.graphics.setColor(1, 0, 0, 1)
+  for i, player in pairs(players) do
+    love.graphics.circle("fill", player.x, player.y, 10)
+  end
+
 
   love.graphics.setColor(0, 0, 0, 1)
 
@@ -211,6 +225,13 @@ function love.draw()
 end
 
 
+function love.joystickadded(joystick)
+  player = {}
+  player.x = 0
+  player.y = 0
+  player.joystick = joystick
+  table.insert(players, player)
+end
 
 function map(tbl, f)
   local t = {}
