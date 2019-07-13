@@ -82,7 +82,10 @@ function eraseLines(selector)
         x = coordinate
       else
         y = coordinate
-        if selector({x=x, y=y}) then
+        local data = {}
+        data.x = x
+        data.y = y
+        if (not (x == nil) and not (y == nil)) and selector(data) then
           if table.getn(newline) > 3 then
             table.insert(newLines, newline)
             newline = {}

@@ -8,14 +8,13 @@ local lastGrabx = 0
 local lastGraby = 0
 local grabDown = false
 
-local selectMode = false
+local mode = "drawing"
 local startSelect = false
 local selectStartx = 0
 local selectStarty = 0
 local selectEndx = 0
 local selectEndy = 0
 local buffer = {}
-local pasteMode = false
 local down = false
 
 function translateBuffer(lines, offsetx, offsety)
@@ -38,7 +37,7 @@ function updateDraw(dt)
   x, y = love.mouse.getPosition()
   if love.mouse.isDown(1) then
     down = true
-    if selectMode then
+    if mode == "select" then
       if not startSelect then
         selectStartx = x - offsetx
         selectStarty = y - offsety
@@ -48,13 +47,13 @@ function updateDraw(dt)
         selectEndy = y - offsety
       end
     else
-      if not pasteMode then
+      if not (mode == "paste") then
         table.insert(currentline, x - offsetx)
         table.insert(currentline, y - offsety)
       end
     end
   else
-    if selectMode then
+    if mode == "select" then
       startSelect = false
     end
     if down then 
@@ -63,7 +62,7 @@ function updateDraw(dt)
         addLine(currentline)
       end
       currentline = {}
-      if pasteMode then
+      if mode == "paste" then
         local translated = translateBuffer(buffer, x - offsetx, y - offsety)
         addObject(translated)
       end
@@ -119,6 +118,7 @@ function updateDraw(dt)
 end
 
 function drawDraw()
+  love.graphics.print(mode .. " mode")
   love.graphics.translate(offsetx, offsety)
   love.graphics.setBackgroundColor(1, 1, 1, 1)
   love.graphics.setColor(0, 0, 0, 1)
@@ -129,7 +129,7 @@ function drawDraw()
     love.graphics.line(currentline)
   end
 
-  if pasteMode then
+  if mode == "paste" then
     drawLines(translateBuffer(buffer, mousex - offsetx, mousey - offsety))
   end
 
@@ -141,21 +141,19 @@ function drawDraw()
 
   
 
-  if selectMode then
+  if mode == "select" then
     love.graphics.rectangle("line", selectStartx, selectStarty, selectEndx - selectStartx, selectEndy - selectStarty)
   end
 end
 
 function drawKey(key)
   if key == "c" then
-    selectMode = not selectMode
+    mode = "select"
   elseif key == "y" then
     buffer = selectObject(selectStartx, selectStarty, selectEndx, selectEndy)
-    pasteMode = true
-    selectMode = false
+    mode = "paste"
   elseif key == "escape" then
-    pasteMode = false
-    selectMode = false
+    mode = "drawing"
   end
 
 end
