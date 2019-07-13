@@ -1,29 +1,7 @@
 require 'pickle'
 require 'player'
-
-lines = {}
-currentline = {}
-startx = 0
-starty = 0
-down = false
-
-offsetx = 0
-offsety = 0
-
-lastGrabx = 0
-lastGraby = 0
-grabDown = false
-
-selectMode = false
-startSelect = false
-selectStartx = 0
-selectStarty = 0
-selectEndx = 0
-selectEndy = 0
-buffer = {}
-
-
-pasteMode = false
+require 'world'
+require 'drawing'
 
 function love.load() 
   love.window.setFullscreen(true)
@@ -31,183 +9,28 @@ function love.load()
 
   if love.filesystem.getInfo("save") then
     local state = unpickle(love.filesystem.read("save"))
-    for i, line_data in pairs(state.lines) do
-      table.insert(lines, line_data.points)  
-    end
+    loadWorld(state)
   end
 end
 
 
-function translateBuffer(lines, offsetx, offsety)
-  local newlines = {}
-  for i, line in pairs(lines) do
-    local newline = {}
-    for i, coordinate in pairs(line) do
-      if i % 2 == 1 then
-        table.insert(newline, coordinate + offsetx)        
-      else
-        table.insert(newline, coordinate + offsety)
-      end
-    end
-    table.insert(newlines, newline)
-  end
-  return newlines
-end
 
 function love.update(dt)
-  x, y = love.mouse.getPosition()
-  if love.mouse.isDown(1) then
-    down = true
-    if selectMode then
-      if not startSelect then
-        selectStartx = x - offsetx
-        selectStarty = y - offsety
-        startSelect = true
-      else
-        selectEndx = x - offsetx
-        selectEndy = y - offsety
-      end
-    else
-      if not pasteMode then
-        table.insert(currentline, x - offsetx)
-        table.insert(currentline, y - offsety)
-      end
-    end
-  else
-    if selectMode then
-      startSelect = false
-    end
-    if down then 
-      down = false
-      if table.getn(currentline) > 3 then
-        table.insert(lines, currentline)
-      end
-      currentline = {}
-      if pasteMode then
-        local translated = translateBuffer(buffer, x - offsetx, y - offsety)
-        for i, line in pairs(translated) do
-          table.insert(lines, line)
-        end
-      end
-    end
-  end 
-  -- If right is down
-  if love.mouse.isDown(2) then
-    local mousex, mousey = love.mouse.getPosition()
-    mousex = mousex - offsetx
-    mousey = mousey - offsety
-    local newLines = {}
-    -- For every line
-    for i, line in pairs(lines) do
-      local newline = {}
-      local x = 0
-      local y = 0
-      for j, coordinate in pairs(line) do
-        if j % 2 == 1 then
-          x = coordinate
-        else
-          y = coordinate
-          -- If we should erase
-          if math.sqrt((x - mousex) ^ 2 + (y - mousey) ^ 2) < 10 then
-            -- Don't include current point
-            -- Add line if it's big enough
-            if table.getn(newline) > 3 then
-              table.insert(newLines, newline)
-              newline = {}
-            end
-          else
-            -- Include this point in the line
-            table.insert(newline, x)
-            table.insert(newline, y)
-          end
-        end
-      end
-      if table.getn(newline) > 3 then
-        table.insert(newLines, newline)
-      end
-    end
-    lines = newLines
-  end
-
-
-  -- Grab
-  if love.mouse.isDown(3) then
-    if not grabDown then
-      lastGrabx, lastGraby = love.mouse.getPosition()
-      grabDown = true
-    else
-      local mousex, mousey = love.mouse.getPosition()
-      offsetx = offsetx + (mousex - lastGrabx)
-      offsety = offsety + (mousey - lastGraby)
-      lastGrabx, lastGraby = mousex, mousey
-    end
-  else
-    grabDown = false
-  end
-
-  
   updatePlayers(dt)
-
-
-  local scrollspeed = 400
-  if love.keyboard.isDown("left") then
-    offsetx = offsetx + scrollspeed * dt;
-  end
-
-  if love.keyboard.isDown("right") then
-    offsetx = offsetx - scrollspeed * dt;
-  end
-
-  if love.keyboard.isDown("up") then
-    offsety = offsety + scrollspeed * dt;
-  end
-
-  if love.keyboard.isDown("down") then
-    offsety = offsety - scrollspeed * dt;
-  end
-
+  updateDraw(dt)
 end
 
-function drawLines(lines)
-  for i, line in pairs(lines) do
-    if table.getn(line) > 3 then
-      love.graphics.line(line)
-    end
-  end
-end
 
 function love.draw()
-  love.graphics.translate(offsetx, offsety)
-  love.graphics.setBackgroundColor(1, 1, 1, 1)
-  love.graphics.setColor(0, 0, 0, 1)
 
-  if table.getn(currentline) > 3 then
-    love.graphics.line(currentline)
-  end
+  drawDraw()
   
-  local mousex, mousey = love.mouse.getPosition()
 
-  drawLines(lines)
+  drawWorld()
 
-  if pasteMode then
-    drawLines(translateBuffer(buffer, mousex - offsetx, mousey - offsety))
-  end
 
   drawPlayers()
 
-  love.graphics.setColor(0, 0, 0, 1)
-
-  if love.mouse.isDown(2) then
-    love.graphics.circle("line", mousex - offsetx, mousey - offsety, 10)
-  else
-    love.graphics.circle("fill", mousex - offsetx, mousey - offsety, 2)
-  end
-
-  
-
-  if selectMode then
-    love.graphics.rectangle("line", selectStartx, selectStarty, selectEndx - selectStartx, selectEndy - selectStarty)
-  end
 end
 
 
@@ -220,60 +43,10 @@ function map(tbl, f)
   return t
 end
 
-function copySegment()
-  local bufferLines = {}
-  for i, line in pairs(lines) do
-    local x, y
-    local bufferLine = {}
-    for i, coordinate in pairs(line) do
-      if i % 2 == 1 then
-        x = coordinate
-      else
-        y = coordinate
-        minx = math.min(selectStartx, selectEndx)
-        miny = math.min(selectStarty, selectEndy)
-        maxx = math.max(selectStartx, selectEndx)
-        maxy = math.max(selectStarty, selectEndy)
-        print(x)
-        print(y)
-
-        if not (x == nil) and not (y == nil) and x >= minx and x <= maxx and y >= miny and y <= maxy then
-          table.insert(bufferLine, x - minx)                    
-          table.insert(bufferLine, y - miny) 
-        else
-          if table.getn(bufferLine) > 3 then
-            table.insert(bufferLines, bufferLines)
-          end
-          bufferLine = {}
-        end
-      end
-    end
-    if table.getn(bufferLine) > 3 then
-      table.insert(bufferLines, bufferLine)
-    end
-  end
-
-  return bufferLines
-end
-
 function love.keypressed(key)
   if key == "s" then
-    local state = {}
-    state.lines = {}
-    for i, line in pairs(lines) do
-      local line_data = {}
-      line_data.points = line
-      table.insert(state.lines, line_data)
-    end
-    love.filesystem.write("save", pickle(state))
-  elseif key == "c" then
-    selectMode = not selectMode
-  elseif key == "y" then
-    buffer = copySegment()
-    pasteMode = true
-    selectMode = false
-  elseif key == "escape" then
-    pasteMode = false
-    selectMode = false
+    love.filesystem.write("save", pickle(saveWorld()))
+  else
+    drawKey(key)
   end
 end
