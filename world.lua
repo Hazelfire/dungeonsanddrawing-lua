@@ -12,6 +12,10 @@ function addLine(line)
   table.insert(lines, line)
 end
 
+function getLines()
+  return lines
+end
+
 function addObject(object)
   for i, line in pairs(object) do
     table.insert(lines, line)

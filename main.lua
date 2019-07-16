@@ -2,6 +2,7 @@ require 'pickle'
 require 'player'
 require 'world'
 require 'drawing'
+require 'sight'
 
 function love.load() 
   love.window.setFullscreen(true)
@@ -18,6 +19,7 @@ end
 function love.update(dt)
   updatePlayers(dt)
   updateDraw(dt)
+  calcVisible()
 end
 
 
@@ -30,6 +32,9 @@ function love.draw()
 
 
   drawPlayers()
+
+
+  drawVectors()
 
 end
 

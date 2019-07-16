@@ -1,6 +1,10 @@
 
 local players = {}
 
+function getPlayerPos()
+  return { players[1].x, players[1].y }
+end
+
 function drawPlayers()
   love.graphics.setColor(1, 0, 0, 1)
   for i, player in pairs(players) do
