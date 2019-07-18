@@ -8,7 +8,7 @@ local intersections = {}
 local lines = {}
 local playerPos = {}
 
-local OFFSET_ANGLE = 0.1
+local OFFSET_ANGLE = 0.01
 
 function table.shallow_copy(t)
   local t2 = {}
@@ -16,6 +16,13 @@ function table.shallow_copy(t)
     t2[k] = v
   end
   return t2
+end
+
+function TableConcat(t1,t2)
+  for i=1,#t2 do
+    t1[#t1+1] = t2[i]
+  end
+  return t1
 end
 
 function calcVisible()
@@ -33,10 +40,21 @@ function calcVisible()
   local bottomLeftx, bottomLefty = -offsetx, height - offsety
   local bottomRightx, bottomRighty = width - offsetx, height - offsety
 
-  local borderLines = {{topLeftx, topLefty, topRightx, topRighty},
-    {topRightx, topRighty, bottomRightx, bottomRighty},
-    {bottomRightx, bottomRighty, bottomLeftx, bottomLefty},
-    {bottomLeftx, bottomLefty, topLeftx, topLefty}}
+  local borderLines = {}
+  local playerPosx, playerPosy = playerPos
+  if playerPos[2] > - offsety then
+    table.insert(borderLines, {topLeftx, topLefty, topRightx, topRighty})
+  end
+  if playerPos[1] < width - offsetx then
+    table.insert(borderLines, {topRightx, topRighty, bottomRightx, bottomRighty})
+  end
+  if playerPos[2] < height - offsety then
+    table.insert(borderLines, {bottomRightx, bottomRighty, bottomLeftx, bottomLefty})
+  end
+  if playerPos[1] > 0 - offsetx then
+    table.insert(borderLines, {bottomLeftx, bottomLefty, topLeftx, topLefty})
+  end
+  
 
   for i, line in pairs(lines) do
     for j, coordinate in pairs(line) do
@@ -70,9 +88,13 @@ function calcVisible()
     end
   end
 
+  local allLines = {}
+  TableConcat(allLines, lines)
+  TableConcat(borderLines, lines)
+
   for i, vector in pairs(vectors) do
     local minT = 1
-    for j, line in pairs(lines) do
+    for j, line in pairs(allLines) do
       for k, coordinate in pairs(line) do
         if k % 2 == 1 and k <= (table.getn(line) - 3) then
           local firstPoint = { line[k], line[k + 1] }
@@ -102,12 +124,23 @@ function calcVisible()
       -- print("Int point: " .. intX .. ", " .. intY)
 
       -- table.insert(intersections, { intX, intY })
-      vectors[i] = toVector({clamp(playerPos[1], -offsetx, -offsetx + width), clamp(playerPos[2], -offsety, -offsety + height)}, { intX, intY })
+      vectors[i] = toVector({playerPos[1], playerPos[2]}, { intX, intY })
     end
   end
 
+  vectors = removeNil(vectors)
   -- Sort vectors by angle from player
   table.sort(vectors, sortVec)
+end
+
+function removeNil(arr) 
+  local newArr = {}
+  for i, val in pairs(arr) do
+    if not (val == nil) then
+      table.insert(newArr, val)
+    end
+  end
+  return newArr
 end
 
 function clamp(val, lower, upper)
@@ -197,15 +230,23 @@ function drawVision()
       vectors[i].x + vectors[i].dx, vectors[i].y + vectors[i].dy, 
       vectors[i + 1].x + vectors[i + 1].dx, vectors[i + 1].y + vectors[i + 1].dy})
   end
+  local width, height = love.graphics.getDimensions()
 
-  local last = table.getn(vectors)
-  love.graphics.polygon("fill", {playerPos[1], playerPos[2], 
-                                      vectors[last].x + vectors[last].dx, vectors[last].y + vectors[last].dy, 
-                                      vectors[1].x + vectors[1].dx, vectors[1].y + vectors[1].dy})
+  local offsetx, offsety = getOffset()
 
-  for i, int in pairs(intersections) do
-    love.graphics.circle("fill" , int[1], int[2], 3)
+  if not ((playerPos[1] < - offsetx and playerPos[2] < - offsety) or
+          (playerPos[1] > width - offsetx and playerPos[2] < - offsety) or
+          (playerPos[1] < - offsetx and playerPos[2] > height - offsety) or
+          (playerPos[1] > width - offsetx and playerPos[2] > height - offsety)) then
+    local last = table.getn(vectors)
+    love.graphics.polygon("fill", {playerPos[1], playerPos[2], 
+                                        vectors[last].x + vectors[last].dx, vectors[last].y + vectors[last].dy, 
+                                        vectors[1].x + vectors[1].dx, vectors[1].y + vectors[1].dy})
   end
+
+--  for i, int in pairs(intersections) do
+--    love.graphics.circle("fill" , int[1], int[2], 3)
+--  end
 
   love.graphics.setColor(0, 0, 0)
 end

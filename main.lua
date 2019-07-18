@@ -5,7 +5,7 @@ require 'drawing'
 require 'sight'
 
 function love.load() 
-  love.window.setFullscreen(false)
+  love.window.setFullscreen(true)
   love.mouse.setVisible(false)
 
   if love.filesystem.getInfo("save") then
@@ -32,7 +32,6 @@ function love.draw()
 
 
   drawVision()
-  drawVectors()
   
 
   drawWorld()
