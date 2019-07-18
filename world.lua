@@ -1,4 +1,4 @@
-local lines = {}
+local lines = {{300, 100, 500, 200, 300, 400}}
 
 function drawLines(lines)
   for i, line in pairs(lines) do
@@ -23,6 +23,7 @@ function addObject(object)
 end
 
 function drawWorld()
+  love.graphics.setColor(0, 0, 0)
   drawLines(lines)
 end
 

@@ -5,7 +5,7 @@ require 'drawing'
 require 'sight'
 
 function love.load() 
-  love.window.setFullscreen(true)
+  love.window.setFullscreen(false)
   love.mouse.setVisible(false)
 
   if love.filesystem.getInfo("save") then
@@ -25,7 +25,14 @@ end
 
 function love.draw()
 
+  -- love.graphics.stencil(maskFunc, "replace", 1)
+  -- love.graphics.setStencilTest("greater", 0)
+
   drawDraw()
+
+
+  drawVision()
+  drawVectors()
   
 
   drawWorld()
@@ -33,9 +40,7 @@ function love.draw()
 
   drawPlayers()
 
-
-  drawVectors()
-
+  -- love.graphics.setStencilTest()
 end
 
 

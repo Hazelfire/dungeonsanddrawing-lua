@@ -17,6 +17,10 @@ local selectEndy = 0
 local buffer = {}
 local down = false
 
+function getOffset()
+  return offsetx, offsety
+end
+
 function translateBuffer(lines, offsetx, offsety)
   local newlines = {}
   for i, line in pairs(lines) do
@@ -120,7 +124,7 @@ end
 function drawDraw()
   love.graphics.print(mode .. " mode")
   love.graphics.translate(offsetx, offsety)
-  love.graphics.setBackgroundColor(1, 1, 1, 1)
+  love.graphics.setBackgroundColor(0, 0, 0, 1)
   love.graphics.setColor(0, 0, 0, 1)
 
   local mousex, mousey = love.mouse.getPosition()
