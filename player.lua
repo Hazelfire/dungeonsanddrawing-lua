@@ -3,6 +3,10 @@ local players = {}
 
 playerColors = {{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {1, 1, 0}, {1, 0, 1}, {0, 1, 1}}
 
+function getPlayerPos()
+  return { players[1].x, players[1].y }
+end
+
 function drawPlayers()
   for i, player in pairs(players) do
     love.graphics.setColor(player.color[1], player.color[2], player.color[3], 1)

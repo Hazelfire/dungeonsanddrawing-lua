@@ -2,6 +2,7 @@ require 'pickle'
 require 'player'
 require 'world'
 require 'drawing'
+require 'sight'
 
 function love.load() 
   love.window.setFullscreen(true)
@@ -18,12 +19,19 @@ end
 function love.update(dt)
   updatePlayers(dt)
   updateDraw(dt)
+  calcVisible()
 end
 
 
 function love.draw()
 
+  -- love.graphics.stencil(maskFunc, "replace", 1)
+  -- love.graphics.setStencilTest("greater", 0)
+
   drawDraw()
+
+
+  drawVision()
   
 
   drawWorld()
@@ -31,6 +39,7 @@ function love.draw()
 
   drawPlayers()
 
+  -- love.graphics.setStencilTest()
 end
 
 
