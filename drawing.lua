@@ -17,6 +17,8 @@ local selectEndy = 0
 local buffer = {}
 local down = false
 
+local scale = 1
+
 function translateBuffer(lines, offsetx, offsety)
   local newlines = {}
   for i, line in pairs(lines) do
@@ -118,8 +120,10 @@ function updateDraw(dt)
 end
 
 function drawDraw()
+  love.graphics.setColor(0, 0, 0, 1)
   love.graphics.print(mode .. " mode")
   love.graphics.translate(offsetx, offsety)
+  love.graphics.scale(scale, scale)
   love.graphics.setBackgroundColor(1, 1, 1, 1)
   love.graphics.setColor(0, 0, 0, 1)
 
@@ -154,6 +158,10 @@ function drawKey(key)
     mode = "paste"
   elseif key == "escape" then
     mode = "drawing"
+  elseif key == "+" then
+    scale = scale * 2
+  elseif key == "-" then
+    scale = scale / 2
   end
 
 end
