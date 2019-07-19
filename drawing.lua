@@ -81,9 +81,14 @@ function updateDraw(dt)
     mousey = mousey - offsety
     
     function closeToCursor(line)
-      return math.sqrt((line.x - mousex) ^ 2 + (line.y - mousey) ^ 2) < 10 
+      return math.sqrt((line[1] - mousex) ^ 2 + (line[2] - mousey) ^ 2) < 10 
     end
-    eraseLines(closeToCursor)
+
+    circleSelector.func = closeToCursor
+    circleSelector.boundingMin = {mousex - 10, mousey - 10}
+    circleSelector.boundingMax = {mousex + 10, mousex + 10}
+
+    eraseLines(circleSelector)
   end
 
 

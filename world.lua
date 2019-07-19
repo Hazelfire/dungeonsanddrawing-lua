@@ -1,35 +1,96 @@
-local lines = {{300, 100, 500, 200, 300, 400}}
+require 'drawing'
 
-function drawLines(lines)
-  for i, line in pairs(lines) do
-    if table.getn(line) > 3 then
-      love.graphics.line(line)
+local segments = {{300, 100, 500, 200, 300, 400}}
+
+local hashTable = {}
+local CELL_SIZE = 10
+
+function getCellLabel(x, y)
+  local cellx, celly = getCellPoint(x, y)
+  return cellx .. "," .. celly
+end
+
+function getCellPoint(x, y)
+  local cellx = math.floor(x / CELL_SIZE)
+  local celly = math.floor(y / CELL_SIZE)
+
+  return cellx, celly
+end
+
+function drawSegments(segments)
+  -- TODO: Compare this to checking all cells to see if they are
+  -- on screen, instead of generating all hashes that are on 
+  -- screen
+  --
+  -- TODO: Possible issue of segments being drawn multiple times 
+  -- if in multiple buckets
+
+  width, height = love.graphics.getDimensions()
+  offsetX, offsetY = getOffsets()
+
+  minCellx, minCelly = getCellPoint(-offsetX, -offsetY)
+  maxCellx, maxCelly = getCellPoint(-offsetX + width, -offsetY + height)
+
+  for cellx = minCellx, maxCellx do
+    for celly = minCelly, maxCelly do
+      local cellLabel = cellx .. "," .. celly
+      
+      if hashTable[cellLabel] then
+        for i, segment in pairs(hashTable[cellLabel]) do
+          love.graphics.line(segment)
+        end
+      end
     end
   end
 end
 
-function addLine(line)
-  table.insert(lines, line)
+function addSegment(segment)
+  table.insert(segments, segment)
+
+  startCellx, startCelly = getCellPoint(segment.startx, segment.starty)
+  endCellx, endCelly = getCellPoint(segment.endx, segment.endy)
+
+  for cellx = startCellx, endCellx do
+    for celly = startCelly, endCelly do
+      local cellLabel = cellx .. "," .. celly
+      
+      if hashTable[cellLabel] then
+        table.insert(hashTable[cellLabel], segment)
+      else
+        hashTable[cellLabel] = {segment}
+      end
+    end
+  end
 end
 
-function getLines()
-  return lines
+function getSegments()
+  return segments
+end
+
+function getSegmentsInCell(x, y)
+  local cellLable = getCellLable(x, y)
+  
+  if hashTable[cellLable] then
+    return hashTable[cellLable]
+  else
+    return {}
+  end
 end
 
 function addObject(object)
-  for i, line in pairs(object) do
-    table.insert(lines, line)
+  for i, segment in pairs(object) do
+    table.insert(segments, segment)
   end
 end
 
 function drawWorld()
   love.graphics.setColor(0, 0, 0)
-  drawLines(lines)
+  drawSegments(segments)
 end
 
 function loadWorld(state)
-  for i, line_data in pairs(state.lines) do
-    table.insert(lines, line_data.points)  
+  for i, segment in pairs(state.segments) do
+    table.insert(segments, segment)  
   end
 end
 
@@ -38,73 +99,56 @@ function selectObject(startx, starty, endx, endy)
   miny = math.min(starty, endy)
   maxx = math.max(startx, endx)
   maxy = math.max(starty, endy)
-  local bufferLines = {}
-  for i, line in pairs(lines) do
-    local x, y
-    local bufferLine = {}
-    for i, coordinate in pairs(line) do
-      if i % 2 == 1 then
-        x = coordinate
-      else
-        y = coordinate
-        if not (x == nil) and not (y == nil) and x >= minx and x <= maxx and y >= miny and y <= maxy then
-          table.insert(bufferLine, x - minx)                    
-          table.insert(bufferLine, y - miny) 
-        else
-          if table.getn(bufferLine) > 3 then
-            table.insert(bufferLines, bufferLines)
+
+  minCellx, minCelly = getCellPoint(-offsetX + minx, -offsetY + miny)
+  maxCellx, maxCelly = getCellPoint(-offsetX + maxx, -offsetY + maxy)
+
+  local bufferSegments = {}
+  for cellx = minCellx, maxCellx do
+    for celly = minCelly, maxCelly do
+      local cellLabel = cellx .. "," .. celly
+      if hashTable[cellLabel] then
+        for i, segment in pairs(hashTable[cellLabel]) do
+          local x = segment[0]
+          local y = segment[1]
+
+          if not (x == nil) and not (y == nil) and x >= minx and x <= maxx and y >= miny and y <= maxy then
+            table.insert(bufferSegments, segment)
           end
-          bufferLine = {}
         end
       end
     end
-    if table.getn(bufferLine) > 3 then
-      table.insert(bufferLines, bufferLine)
-    end
   end
 
-  return bufferLines
+  return bufferSegments
 end
 
 function saveWorld()
   local state = {}
-  state.lines = {}
-  for i, line in pairs(lines) do
-    local line_data = {}
-    line_data.points = line
-    table.insert(state.lines, line_data)
+  state.segments = {}
+  for i, segment in pairs(segments) do
+    table.insert(state.segments, segments)
   end
   return state
 end
 
-function eraseLines(selector)
-  local newLines = {}
-  for i, line in pairs(lines) do
-    local newline = {}
-    local x, y
-    for j, coordinate in pairs(line) do
-      if j % 2 == 1 then
-        x = coordinate
-      else
-        y = coordinate
-        local data = {}
-        data.x = x
-        data.y = y
-        if (not (x == nil) and not (y == nil)) and selector(data) then
-          if table.getn(newline) > 3 then
-            table.insert(newLines, newline)
-            newline = {}
+function eraseSegments(selector)
+  boundingMin = selector.boundingMin
+  boundingMax = selector.boundingMax
+  minCellx, minCelly = getCellPoint(boundingMin[1], boundingMin[2])
+  maxCellx, maxCelly = getCellPoint(boundingMax[1], boundingMax[2])
+
+  for cellx = minCellx, maxCellx do
+    for celly = minCelly, maxCelly do
+      local cellLabel = cellx .. "," .. celly
+
+      if hashTable[cellLabel] then
+        for i, segment in pairs(hashTable[cellLabel]) do
+          if selector.func(segment) then
+            table.remove(hashTable[cellLabel], i)
           end
-        else
-          -- Include this point in the line
-          table.insert(newline, x)
-          table.insert(newline, y)
         end
       end
     end
-    if table.getn(newline) > 3 then
-      table.insert(newLines, newline)
-    end
   end
-  lines = newLines
 end
