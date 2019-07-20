@@ -5,7 +5,7 @@ require 'drawing'
 local vectors = {}
 local intersections = {}
 
-local lines = {}
+local segments = {}
 local playerPos = {}
 
 local OFFSET_ANGLE = 0.01
@@ -29,14 +29,15 @@ function calcVisible()
   vectors = {}
   intersections = {}
 
-  local lines = getLines()
+  local segments = getSegments()
   local playerPos = getPlayerPos()
 
   -- Add lines around screen border
   width, height = love.graphics.getDimensions()
   offsetx, offsety = getOffset()
 
-  local topLeftx, topLefty = -offsetx, -offsety local topRightx, topRighty = width - offsetx, -offsety 
+  local topLeftx, topLefty = -offsetx, -offsety
+  local topRightx, topRighty = width - offsetx, -offsety
   local bottomLeftx, bottomLefty = -offsetx, height - offsety
   local bottomRightx, bottomRighty = width - offsetx, height - offsety
 
@@ -56,27 +57,22 @@ function calcVisible()
   end
   
 
-  for i, line in pairs(lines) do
-    for j, coordinate in pairs(line) do
-      if j % 2 == 1 and j < table.getn(line) then
-          local points = { line[j], line[j + 1] }
+  for i, segment in pairs(segments) do
+    local startPoint = {segment[0], segment[1]}
+    local vector = toVector(playerPos, startPoint)
+    local polar = vecToPolar(vector)
 
-          local vector = toVector(playerPos, points)
-          local polar = vecToPolar(vector)
+    local posOffset = table.shallow_copy(polar)
+    posOffset.arg = posOffset.arg + OFFSET_ANGLE
+    posOffset.mag = 10000
 
-          local posOffset = table.shallow_copy(polar)
-          posOffset.arg = posOffset.arg + OFFSET_ANGLE
-          posOffset.mag = 10000
+    local negOffset = table.shallow_copy(polar)
+    negOffset.arg = negOffset.arg - OFFSET_ANGLE
+    negOffset.mag = 10000
 
-          local negOffset = table.shallow_copy(polar)
-          negOffset.arg = negOffset.arg - OFFSET_ANGLE
-          negOffset.mag = 10000
-
-          table.insert(vectors, vector)
-          table.insert(vectors, polarToVec(posOffset))
-          table.insert(vectors, polarToVec(negOffset))
-      end
-    end
+    table.insert(vectors, vector)
+    table.insert(vectors, polarToVec(posOffset))
+    table.insert(vectors, polarToVec(negOffset))
   end
   
   for i, line in pairs(borderLines) do
@@ -88,11 +84,21 @@ function calcVisible()
     end
   end
 
+  -- TODO: Try to remove uneccessary "wiggle" rays for
+  -- continuous line segments
+  --
+  -- Could be done by iterating through segments in a
+  -- line and only wiggling when the delta of the angle from
+  -- the player to a segment changes sign
+
   local allLines = {}
-  TableConcat(allLines, lines)
-  TableConcat(borderLines, lines)
+  TableConcat(allLines, segments)
+  TableConcat(borderLines, segments)
 
   for i, vector in pairs(vectors) do
+    -- Rasterize the vector onto the cell grid until it
+    -- hits a segment
+
     local minT = 1
     for j, line in pairs(allLines) do
       for k, coordinate in pairs(line) do
@@ -132,6 +138,33 @@ function calcVisible()
   -- Sort vectors by angle from player
   table.sort(vectors, sortVec)
 end
+
+function castVector(vec)
+  blueSquares = {}
+
+  x0 = vec.x
+  y0 = vec.y
+
+  dx = vec.dx
+  dy = vec.dy
+
+  if not dx == 0 then
+    gradient = dy / dx
+  end
+  
+  if dx > 0 and dy > 0 and gradient > 0 and gradient <= 1 then
+    local cellx = getCellPoint(x0, y0)
+
+    -- Convert cell index to world coordinates
+    local cellxCoord = cellx * CELL_SIZE 
+
+    for cellEdgeX = cellxCoord, x0 + dx, CELL_SIZE do
+      y = y0 + gradient * (cellEdgeX - x0)   
+      local _, celly = getCellPoint(cellEdgeX, y) 
+
+      table.insert(blueSquares, {cellxCoord
+    end
+  end
 
 function removeNil(arr) 
   local newArr = {}
